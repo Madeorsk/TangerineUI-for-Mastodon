@@ -22,6 +22,18 @@ cd dev
 
 Log in with **admin@localhost / mastodonadmin**, then pick a Tangerine UI variant under Preferences > Appearance > Site theme.
 
+## Visual regression tests
+
+Playwright screenshots the core surfaces (home, notifications, DMs, explore, local timeline, profile) for every variant in light and dark, and diffs them against committed baselines. Runs on the host against the instance from `./dev.sh up`.
+
+```sh
+./dev.sh up                          # instance must be running and seeded
+./dev.sh visual                      # run the diff
+./dev.sh visual --update-snapshots   # accept current rendering as baseline
+```
+
+Baselines live in `visual/__screenshots__`. After an intentional theme change, review the diff in `visual/playwright-report/`, then re-run with `--update-snapshots`.
+
 ## Other commands
 
 | Command         | Description                          |

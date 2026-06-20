@@ -18,17 +18,21 @@ fi
 # Symlink the theme sources from this repo into the Mastodon checkout, register the variants in themes.yml, and add the localized theme names.
 # Relative links resolve identically on the host and inside the /workspace bind mount.
 link() {
-  # Theme sources (styles + locale) are bind-mounted into the checkout by compose.yaml.
-  for p in ../mastodon/app/javascript/styles/tangerineui*; do
-    rm -rf "$SUB/app/javascript/styles/$(basename "$p")"
+  # The theme files are bind-mounted from this repo by compose.yaml.
+  # A bind mount nested inside the broader `..:/workspace` mount is silently ignored unless its target already exists, so copy the sources to create those mountpoints.
+  local styles="../mastodon/app/javascript/styles"
+  for p in "$styles"/tangerineui*; do
+    local dst="$SUB/app/javascript/styles/$(basename "$p")"
+    rm -rf "$dst"
+    cp -r "$p" "$dst"
   done
-  rm -f "$SUB/config/locales/tangerineui.yml"
+  cp ../mastodon/config/locales/tangerineui.yml "$SUB/config/locales/tangerineui.yml"
 
   local themes="$SUB/config/themes.yml"
   for v in $VARIANTS; do
     grep -q "^$v:" "$themes" || printf '%s: styles/%s.scss\n' "$v" "$v" >> "$themes"
   done
-  echo "Theme registered in themes.yml (styles + locale bind-mounted via compose.yaml)."
+  echo "Theme mountpoints created and registered in themes.yml."
 }
 
 case "${1:-}" in
@@ -55,18 +59,26 @@ case "${1:-}" in
   seed)
     $DC run --rm app bash -lc "bundle exec rails runner /workspace/dev/seed.rb"
     ;;
+  visual)
+    shift
+    cd visual
+    [ -d node_modules ] || pnpm install
+    pnpm exec playwright install chromium
+    pnpm exec playwright test "$@"
+    ;;
   up)    $DC up app ;;
   down)  $DC down ;;
   logs)  $DC logs -f app ;;
   sh)    $DC exec app bash ;;
   *)
-    echo "Usage: ./dev.sh {init|up|seed|link|logs|sh|down}"
-    echo "  init  build image, install deps, set up the database (run once)"
-    echo "  up    start Mastodon with Vite HMR on http://localhost:3000"
-    echo "  seed  add sample posts, DM, boost, notifications, custom emoji"
-    echo "  link  re-link the theme into the Mastodon checkout"
-    echo "  logs  follow app logs"
-    echo "  sh    shell into the app container"
-    echo "  down  stop everything"
+    echo "Usage: ./dev.sh {init|up|seed|visual|link|logs|sh|down}"
+    echo "  init   build image, install deps, set up the database (run once)"
+    echo "  up     start Mastodon with Vite HMR on http://localhost:3000"
+    echo "  seed   add sample posts, DM, boost, notifications, custom emoji"
+    echo "  visual run Playwright visual regression tests (pass --update-snapshots to refresh)"
+    echo "  link   re-link the theme into the Mastodon checkout"
+    echo "  logs   follow app logs"
+    echo "  sh     shell into the app container"
+    echo "  down   stop everything"
     ;;
 esac
