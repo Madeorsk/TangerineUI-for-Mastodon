@@ -2,3 +2,7 @@
 .nova
 update.sh
 install.sh
+
+# IDE
+
+*.iml
